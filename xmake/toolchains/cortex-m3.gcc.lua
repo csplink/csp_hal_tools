@@ -1,3 +1,5 @@
+set_xmakever("2.7.2")
+
 toolchain("arm-none-eabi") -- add toolchain
     set_kind("cross") -- set toolchain kind
 	set_description("arm embedded compiler")
