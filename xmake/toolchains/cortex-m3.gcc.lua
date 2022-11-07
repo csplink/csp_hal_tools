@@ -1,7 +1,7 @@
 set_xmakever("2.7.2")
 
 function use_toolchain(sdk_path)
-    if(get_config("sdk") == nil) then
+    if not get_config("sdk") then
         set_config("sdk", sdk_path) -- set toolchain directory
     end
     toolchain("arm-none-eabi") -- add toolchain
@@ -13,4 +13,6 @@ function use_toolchain(sdk_path)
         set_toolset("as", "arm-none-eabi-gcc")
     toolchain_end()
     set_toolchains("arm-none-eabi") -- set toolchains
+    set_config("plat", "cross")
+    set_config("compiler", "gcc")
 end
