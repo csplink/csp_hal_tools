@@ -157,7 +157,7 @@ function generate_file(header)
     table.insert(t, "#define __CSP_CONFIG_H__")
     table.insert(t, "")
     for k, v in pairs_by_keys(sdk_builtinvars) do
-        table.insert(t, "#define " .. k:upper() .. " \"" .. v .. "\"")
+        table.insert(t, "#define CSP_" .. k:upper() .. " \"" .. v .. "\"")
     end
 
     for mk, mv in pairs_by_keys(header) do
