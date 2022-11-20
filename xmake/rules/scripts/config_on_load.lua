@@ -24,7 +24,11 @@ import("core.project.project")
 
 -- import
 function main(target)
-    if option.get("menu") then return end -- if use menu then pass
+    if option.get("menu") then
+        return
+    end
+
+    -- if use menu then pass
     if os.isfile("csp.conf") then
         local import_configs = io.load("csp.conf")
         if import_configs then
