@@ -63,8 +63,10 @@ end
 -- export
 function save()
     local configs = {}
-    for optionname, option in pairs(project.options()) do
-        configs[optionname] = option:value()
+    for optname, opt in pairs(project.options()) do
+        if opt:info().showmenu then
+            configs[optname] = opt:value()
+        end
     end
     return io.save("csp.conf", configs, {orderkeys = true})
 end
@@ -107,33 +109,35 @@ end
 
 function generate_header()
     local header = {}
-    for optionname, option in pairs(project.options()) do
-        local info = {}
-        local key = "/"
+    for optname, opt in pairs(project.options()) do
+        if opt:info().showmenu then
+            local info = {}
+            local key = "/"
 
-        -- init info object
-        info.name = optionname
-        info.description = option:info().description
-        -- convert boolean to 1 and 0
-        if option:value() == true then
-            info.value = 1
-        elseif option:value() == false then
-            info.value = 0
-        else
-            info.value = option:value()
+            -- init info object
+            info.name = optname
+            info.description = opt:info().description
+            -- convert boolean to 1 and 0
+            if opt:value() == true then
+                info.value = 1
+            elseif opt:value() == false then
+                info.value = 0
+            else
+                info.value = opt:value()
+            end
+
+            if opt:info().category then
+                key = opt:info().category
+            else
+                key = "/" -- if not use set_category, then use default "/"
+            end
+
+            if not header[key] then
+                header[key] = {} -- create new info table
+            end
+
+            header[key][info.name] = info
         end
-
-        if option:info().category then
-            key = option:info().category
-        else
-            key = "/" -- if not use set_category, then use default "/"
-        end
-
-        if not header[key] then
-            header[key] = {} -- create new info table
-        end
-
-        header[key][info.name] = info
     end
     return header
 end
