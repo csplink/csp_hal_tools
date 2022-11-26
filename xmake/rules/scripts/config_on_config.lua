@@ -63,7 +63,7 @@ end
 -- export
 function save()
     local configs = {}
-    for optname, opt in pairs(project.options()) do
+    for optname, opt in pairs_by_keys(project.options()) do
         if opt:info().showmenu then
             configs[optname] = opt:value()
         end
@@ -109,7 +109,7 @@ end
 
 function generate_header()
     local header = {}
-    for optname, opt in pairs(project.options()) do
+    for optname, opt in pairs_by_keys(project.options()) do
         if opt:info().showmenu then
             local info = {}
             local key = "/"
