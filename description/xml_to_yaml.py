@@ -1,3 +1,4 @@
+import yaml
 import os, sys, getopt
 import xml.etree.ElementTree as Et
 
@@ -5,7 +6,7 @@ import xml.etree.ElementTree as Et
 def help():
     """
 example:
-    python .\xml_to_yaml.py -t pinout -f pinout.xml -o pinout.yml
+    python ./xml_to_yaml.py -t pinout -f pinout.xml -o pinout.yml
     """
     print("usage: " + os.path.basename(__file__) + " [<options>] ")
     print("")
@@ -66,6 +67,48 @@ example:
             yml.append("    " + function.attrib["Name"] + ": {struct}".format(struct=struct))
     with open(output, "w", encoding="utf-8") as fp:
         fp.write("\n".join(yml) + "\n")
+
+
+def clock_control(tree, output):
+    """
+convert pinout xml to yml
+    """
+    """
+<Control ID="7" Name="MCO-Out" Type="Label" Multiple="1000000">
+    <Signals>
+        <Signal Source="PLL-HSE-Mul" Value="2" Operator="/">
+            <Dependencies>CSP_USING_CLOCK_MCO_PLL_DIV2</Dependencies>
+        </Signal>
+        <Signal SourceValue="8000000">
+            <Dependencies>CSP_USING_CLOCK_MCO_HSI</Dependencies>
+        </Signal>
+        <Signal Source="HSE-Input">
+            <Dependencies>CSP_USING_CLOCK_MCO_HSE</Dependencies>
+        </Signal>
+        <Signal Source="SYS-Clk">
+            <Dependencies>CSP_USING_CLOCK_MCO_SYSTEM_CLK</Dependencies>
+        </Signal>
+    </Signals>
+</Control>
+    """
+    root = tree.getroot()
+    controls = root.findall("Controls/Control")
+    yml = {}
+    yml["Controls"] = {}
+    for control in controls:
+        id = control.attrib.pop('ID')
+        if "Multiple" in control.attrib:
+            control.attrib["Multiple"] = int(control.attrib["Multiple"])
+        if "IsChecked" in control.attrib:
+            control.attrib["IsChecked"] = bool(control.attrib["IsChecked"])
+        if "DefaultIndex" in control.attrib:
+            control.attrib["DefaultIndex"] = int(control.attrib["DefaultIndex"])
+        if "DefaultValue" in control.attrib:
+            control.attrib["DefaultValue"] = float(control.attrib["DefaultValue"])
+        yml["Controls"][int(id)] = {}
+        yml["Controls"][int(id)]["Base"] = control.attrib
+    with open(output, "w", encoding="utf-8") as fp:
+        fp.write(yaml.dump(yml, sort_keys=False) + "\n")
 
 
 def main(type, file, output):
