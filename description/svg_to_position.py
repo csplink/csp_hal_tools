@@ -1,4 +1,5 @@
-import os
+import yaml
+import os, sys, getopt
 import xml.etree.ElementTree as Et
 
 
@@ -28,140 +29,110 @@ class Ellipse:
         self.height = (float(height) + 2) * 2
 
 
-class Svg:
-    @staticmethod
-    def indent(elem, level=0):
-        i = "\n" + level * "    "
-        if len(elem):
-            if not elem.text or not elem.text.strip():
-                elem.text = i + "    "
-            if not elem.tail or not elem.tail.strip():
-                elem.tail = i
-            for elem in elem:
-                Svg.indent(elem, level + 1)
-            if not elem.tail or not elem.tail.strip():
-                elem.tail = i
-        else:
-            if level and (not elem.tail or not elem.tail.strip()):
-                elem.tail = i
+def help():
+    """
+example:
+    # python ./svg_to_position.py -f apm32f103zet6.svg -o apm32f103zet6.yml
+    """
+    print("usage: " + os.path.basename(__file__) + " [<options>] ")
+    print("")
+    print("    -h, --help       print this help")
+    print("    -f, --file       clock svg file")
+    print("    -o, --output     output file")
 
-    @staticmethod
-    def generate_xml(file, width, height, rects, ellipses):
-        xml_clock = Et.Element('Clock', Width=str(width), Height=str(height))
 
-        xml_rects = Et.SubElement(xml_clock, 'Rects')
-        i = 0
-        for item in rects:
-            i += 1
-            Et.SubElement(xml_rects, 'Rect', ID=str(i), X=str(item.x), Y=str(item.y), Width=str(item.width),
-                          Height=str(item.height))
+def parse_svg(file):
+    rects = []
+    ellipses = []
+    width = 0
+    height = 0
 
-        xml_rects = Et.SubElement(xml_clock, 'Ellipses')
-        for item in ellipses:
-            i += 1
-            Et.SubElement(xml_rects, 'Ellipse', ID=str(i), X=str(item.x), Y=str(item.y), Width=str(item.width),
-                          Height=str(item.height))
+    svg_tree = Et.parse(file)
+    svg_root = svg_tree.getroot()
+    for item in svg_root.iter():
 
-        Svg.indent(xml_clock)
-        with open(file, 'wb') as f:
-            data = Et.tostring(xml_clock, encoding="utf-8", xml_declaration=True)
-            if data[-1] == b'\n'[0]:
-                f.write(data[0:len(data) - 1])
+        if item.tag.lower().endswith("svg"):
+            # <svg version="1.1" width="1603px" height="903px" viewBox="-0.5 -0.5 1603 903" />
+            width = float(item.attrib["width"].replace("px", ""))
+            height = float(item.attrib["height"].replace("px", ""))
+        # <rect x="521" y="221" width="55" height="30" rx="4.5" ry="4.5" fill="#94d2ef" stroke="#000000" stroke-width="1" pointer-events="none" />
+        elif item.tag.lower().endswith("rect") and "rx" not in item.attrib.keys() and "ry" not in item.attrib.keys():
+            # stroke-width defaults to 1. We only match rectangles with a line width of 1
+            if "stroke-width" not in item.attrib.keys():
+                rects.append(Rect(item.attrib["x"], item.attrib["y"], item.attrib["width"], item.attrib["height"]))
             else:
-                f.write(data)
-
-    @staticmethod
-    def change_xml(file, width, height, rects, ellipses):
-        xml_tree = Et.parse(file)
-        xml_root = xml_tree.getroot()
-
-        if "Width" in xml_root.attrib.keys() and "Height" in xml_root.attrib.keys():
-            xml_root.attrib["Width"] = str(width)
-            xml_root.attrib["Height"] = str(height)
-
-        # 只删除Rects与Ellipses节点
-        rect_nodes = xml_root.findall("Rects")
-        for node in rect_nodes:
-            xml_root.remove(node)
-        ellipse_nodes = xml_root.findall("Ellipses")
-        for node in ellipse_nodes:
-            xml_root.remove(node)
-
-        xml_rects = Et.Element('Rects')
-        i = 0
-        for item in rects:
-            i += 1
-            Et.SubElement(xml_rects, 'Rect', ID=str(i), X=str(item.x), Y=str(item.y), Width=str(item.width),
-                          Height=str(item.height))
-        xml_root.append(xml_rects)
-
-        xml_ellipses = Et.Element('Ellipses')
-        for item in ellipses:
-            i += 1
-            Et.SubElement(xml_ellipses, 'Ellipse', ID=str(i), X=str(item.x), Y=str(item.y), Width=str(item.width),
-                          Height=str(item.height))
-        xml_root.append(xml_ellipses)
-
-        Svg.indent(xml_root)
-        with open(file, 'wb') as f:
-            data = Et.tostring(xml_root, encoding="utf-8", xml_declaration=True)
-            if data[-1] == b'\n'[0]:
-                f.write(data[0:len(data) - 1])
-            else:
-                f.write(data)
-
-    @staticmethod
-    def parse_svg(file):
-        rects = []
-        ellipses = []
-        width = 0
-        height = 0
-
-        svg_tree = Et.parse(file)
-        svg_root = svg_tree.getroot()
-        for item in svg_root.iter():
-            if item.tag.lower().endswith("svg"):
-                width = float(item.attrib["width"].replace("px", ""))
-                height = float(item.attrib["height"].replace("px", ""))
-            # rx 和 ry 为圆角矩形的半径
-            elif item.tag.lower().endswith("rect") \
-                    and "rx" not in item.attrib.keys() \
-                    and "ry" not in item.attrib.keys():
-                if "stroke-width" not in item.attrib.keys():  # stroke-width 代表外框线宽，为空默认就为1，我们只匹配线宽1的矩形
+                if item.attrib["stroke-width"] == "1":
                     rects.append(Rect(item.attrib["x"], item.attrib["y"], item.attrib["width"], item.attrib["height"]))
-                else:
-                    if item.attrib["stroke-width"] == "1":
-                        rects.append(
-                            Rect(item.attrib["x"], item.attrib["y"], item.attrib["width"], item.attrib["height"]))
-            # rx 和 ry 为的半径
-            elif item.tag.lower().endswith("ellipse"):
-                if item.attrib["rx"] == item.attrib["ry"]:
-                    if float(item.attrib["rx"]) >= 5:
-                        ellipses.append(
-                            Ellipse(item.attrib["cx"], item.attrib["cy"], item.attrib["rx"], item.attrib["ry"]))
-            rects.sort(key=lambda x: (x.x, x.y))  # 按坐标重排控件
-            ellipses.sort(key=lambda x: (x.x, x.y))  # 按坐标重排控件
-        return width, height, rects, ellipses
+        # <ellipse cx="436.06" cy="96" rx="5" ry="5" fill="rgb(255, 255, 255)" stroke="rgb(0, 0, 0)" pointer-events="none" />
+        elif item.tag.lower().endswith("ellipse"):
+            if item.attrib["rx"] == item.attrib["ry"]:
+                if float(item.attrib["rx"]) >= 5:
+                    ellipses.append(Ellipse(item.attrib["cx"], item.attrib["cy"], item.attrib["rx"], item.attrib["ry"]))
+        # Arrange controls by coordinates
+        rects.sort(key=lambda x: (x.x, x.y))
+        ellipses.sort(key=lambda x: (x.x, x.y))
+    return width, height, rects, ellipses
 
-    @staticmethod
-    def generate(file):
-        width, height, rects, ellipses = Svg.parse_svg(file)  # 解析svg文件
-        # 获取xml路径
-        file_path, file_name = os.path.split(file)
-        xml_path = file_path + "/" + os.path.splitext(file_name)[0] + ".xml"
 
-        # 不存在则直接新建一个
-        if not os.path.exists(xml_path):
-            Svg.generate_xml(xml_path, width, height, rects, ellipses)
-        else:
-            Svg.change_xml(xml_path, width, height, rects, ellipses)
+controls = {}
+yml = []
 
-        print("generate: " + xml_path)
+
+def main(file, output):
+    width, height, rects, ellipses = parse_svg(file)
+    yml.append("Width: " + str(width))
+    yml.append("Height: " + str(height))
+    if os.path.exists(output):
+        string = ""
+        with open(output, "r") as fp:
+            string = fp.read()
+        config = yaml.load(string, Loader=yaml.FullLoader)
+        if "Controls" in config.keys():
+            controls = config["Controls"]
+    if (len(controls) > 0):
+        yml.append(yaml.dump(controls, sort_keys=False).replace("'", "").strip())
+    i = 0
+    yml.append("Rects:")
+    for rect in rects:
+        i += 1
+        yml.append("  {id}: {{ X: {x}, Y: {y}, Width: {width}, Height: {height} }}".format(id=i,
+                                                                                           x=rect.x,
+                                                                                           y=rect.y,
+                                                                                           width=rect.width,
+                                                                                           height=rect.height))
+    yml.append("Ellipses:")
+    for ellipse in ellipses:
+        i += 1
+        yml.append("  {id}: {{ X: {x}, Y: {y}, Width: {width}, Height: {height} }}".format(id=i,
+                                                                                           x=ellipse.x,
+                                                                                           y=ellipse.y,
+                                                                                           width=ellipse.width,
+                                                                                           height=ellipse.height))
+    # with open(output, "w", encoding="utf-8") as fp:
+    # fp.write("\n".join(yml))
+    print("\n".join(yml))
 
 
 if __name__ == "__main__":
-    description_path = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-    for name in os.listdir(description_path):
-        path = description_path + "/" + name + "/clock/" + name + ".svg"
-        if os.path.exists(path):
-            Svg.generate(path)
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "hf:o:", ["help", "file=", "output="])
+    except getopt.GetoptError:
+        help()
+        sys.exit(2)
+
+    file = ""
+    output = ""
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            help()
+            sys.exit()
+        elif opt in ("-f", "--file"):
+            file = arg
+        elif opt in ("-o", "--output"):
+            output = arg
+
+    if file == "" or output == "":
+        help()
+        sys.exit(2)
+
+    main(file, output)
