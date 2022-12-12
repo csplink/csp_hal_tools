@@ -74,17 +74,12 @@ end
 function get_git_builtinvars()
     local builtinvars = {}
     local cmds = {
-        git_tag = {"describe", "--tags"},
-        git_tag_long = {"describe", "--tags", "--long"},
-        git_branch = {"rev-parse", "--abbrev-ref", "HEAD"},
-        git_commit = {"rev-parse", "--short", "HEAD"},
-        git_commit_long = {"rev-parse", "HEAD"},
-        git_commit_date = {
-            "log",
-            "-1",
-            "--date=format:%Y%m%d%H%M%S",
-            "--format=%ad"
-        }
+        git_tag = "git describe --tags",
+        git_tag_long = "git describe --tags --long",
+        git_branch = "git rev-parse --abbrev-ref HEAD",
+        git_commit = "git rev-parse --short HEAD",
+        git_commit_long = "git rev-parse HEAD",
+        git_commit_date = "git log -1 --date=format:%Y%m%d%H%M%S --format=%ad"
     }
     local git = find_tool("git")
     if git then
@@ -93,7 +88,7 @@ function get_git_builtinvars()
             result =
                 try {
                 function()
-                    return os.iorunv(git.program, argv)
+                    return os.iorun(argv)
                 end
             }
             if not result then
