@@ -34,8 +34,8 @@ local logo =
                         by xqyjlj<xqyjlj@126.com>, csplink.github.io
 ]]
 
-local manual = "https://csplink.github.io/#/getting_started"
-local donate = "https://csplink.github.io/#/sponsor"
+local manual = "https://csplink.top/#/getting_started"
+local donate = "https://csplink.top/#/sponsor"
 local title = ""
 local copyright = "Copyright (C) 2022-present xqyjlj<xqyjlj@126.com>, csplink.github.io"
 local footer =
